@@ -1,0 +1,22 @@
+{
+  "name": "holographic-sticker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Open-source reference for a die-cut holographic sticker viewer (R3F + baked foil maps).",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Salutatorian/holographic-sticker.git"
+  },
+  "keywords": [
+    "holographic",
+    "sticker",
+    "three.js",
+    "react-three-fiber",
+    "foil",
+    "webgl"
+  ],
+  "peerDependenciesMeta": {
+    "note": "This repo is reference source extracted from a Next.js portfolio — install peers in your app, not here."
+  }
+}
