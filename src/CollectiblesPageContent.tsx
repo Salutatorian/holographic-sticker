@@ -50,6 +50,18 @@ export function CollectiblesPageContent({
               How we built this holographic sticker — open-source walkthrough with
               copyable code
             </button>
+            <p className="mt-2 text-[13px] text-foreground/40">
+              <a
+                href="https://github.com/Salutatorian/holographic-sticker"
+                target="_blank"
+                rel="noreferrer"
+                className="underline decoration-foreground/20 underline-offset-4 transition hover:text-foreground/70 hover:decoration-foreground/40"
+              >
+                GitHub repo
+              </a>
+              <span className="mx-1.5 text-foreground/25">·</span>
+              <span>full source + screenshots</span>
+            </p>
           </div>
 
           {unlocked ? (
