@@ -4,9 +4,17 @@
   "private": true,
   "description": "Open-source reference for a die-cut holographic sticker viewer (R3F + baked foil maps).",
   "license": "MIT",
+  "author": {
+    "name": "Joshua Waldo",
+    "url": "https://thegreaterengine.xyz"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/Salutatorian/holographic-sticker.git"
+  },
+  "homepage": "https://github.com/Salutatorian/holographic-sticker#readme",
+  "bugs": {
+    "url": "https://github.com/Salutatorian/holographic-sticker/issues"
   },
   "keywords": [
     "holographic",

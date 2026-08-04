@@ -107,6 +107,10 @@ Live demo: [thegreaterengine.xyz/collectibles](https://thegreaterengine.xyz/coll
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+**Copyright © 2026 Joshua Waldo** ([@Salutatorian](https://github.com/Salutatorian)).
+
+This repository is released under the [MIT License](LICENSE). You may use, copy, modify, and distribute the code, provided you keep the copyright notice and license text.
+
+Live demo / origin: [thegreaterengine.xyz/collectibles](https://thegreaterengine.xyz/collectibles)
 
 Screenshots and example art may depict third-party characters used for demonstration on a personal portfolio; don’t treat those images as freely redistributable brand assets.
