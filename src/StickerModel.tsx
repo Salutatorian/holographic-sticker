@@ -200,14 +200,20 @@ export function StickerModel({
   );
 
   const backInkMaterial = useMemo(() => {
-    // Matte black vinyl — BasicMaterial so env/lights can't wash it into a
-    // "already mirrored" ghost of the front. Alpha from mask G channel.
-    const mat = new THREE.MeshBasicMaterial({
-      color: new THREE.Color("#000000"),
+    // Lit matte vinyl — MeshBasic #000 on a black studio backdrop reads as
+    // "the sticker disappeared" on a 360. Physical + rim catch keeps the
+    // die-cut readable while still clearly not mirrored front art.
+    const mat = new THREE.MeshPhysicalMaterial({
+      color: new THREE.Color("#0c0c0e"),
       alphaMap: maskMap,
       transparent: true,
       alphaTest: 0.12,
       side: THREE.FrontSide,
+      roughness: 0.92,
+      metalness: 0.02,
+      clearcoat: 0.35,
+      clearcoatRoughness: 0.45,
+      envMapIntensity: 0.28,
       depthWrite: true,
       polygonOffset: true,
       polygonOffsetFactor: 1,
