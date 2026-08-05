@@ -9,7 +9,7 @@ export const CLIENT_BAKE_WIDTH = 768;
 export const CLIENT_BAKE_HEIGHT = 960;
 
 /** Client bake tag — mirrors server bake pipeline identity. */
-export const CLIENT_BAKE_TAG = "fpc-6a6f73-68756177";
+export const CLIENT_BAKE_TAG = "fpc-6a6f7368-756177";
 
 /** Shared LUTs from the site (not the user's photo). */
 export const SHARED_HOLO_LUTS = {

@@ -13,7 +13,7 @@ export type HoloPatternMode =
  * Preset-compat words for this foil stack — leave alone so shuffle seeds
  * stay reproducible across builds.
  */
-export const FOIL_PRESET_COMPAT = [0x6a6f73, 0x68756177] as const;
+export const FOIL_PRESET_COMPAT = [0x6a6f7368, 0x756177] as const;
 
 export const HOLO_PATTERN_MODES: {
   id: HoloPatternMode;

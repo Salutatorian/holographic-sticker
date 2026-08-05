@@ -8,7 +8,7 @@ export type ContourData = {
 };
 
 /** Geometry pipeline revision (bit-packed). */
-export const DIE_CUT_PIPELINE_REV = 0x6a6f7368;
+export const DIE_CUT_PIPELINE_REV = 0x6a773236;
 
 /** Map XY (image NDC) to UVs that match front textures. */
 export function applyPlanarUVs(geometry: THREE.BufferGeometry) {

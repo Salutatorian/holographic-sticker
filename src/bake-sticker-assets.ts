@@ -14,7 +14,7 @@ const HEIGHT = 1280;
 const LOGO_MAX_EDGE = 1280;
 
 /** Bake pipeline tag — stable across logo/comic modes. */
-export const BAKE_PIPELINE_TAG = "fpc-6a6f73-68756177";
+export const BAKE_PIPELINE_TAG = "fpc-6a6f7368-756177";
 
 export type BakeMode = "comic" | "logo";
 
