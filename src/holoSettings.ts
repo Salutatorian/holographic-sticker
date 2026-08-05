@@ -83,6 +83,8 @@ export type HoloPlaySettings = {
   autoSway: boolean;
   /** Idle sway speed */
   swaySpeed: number;
+  /** When true, reverse face mirrors front art; default is solid black vinyl. */
+  mirrorBack: boolean;
 };
 
 export const DEFAULT_HOLO_PLAY_SETTINGS: HoloPlaySettings = {
@@ -106,4 +108,5 @@ export const DEFAULT_HOLO_PLAY_SETTINGS: HoloPlaySettings = {
   webFill: 0.1,
   autoSway: false,
   swaySpeed: 1,
+  mirrorBack: false,
 };

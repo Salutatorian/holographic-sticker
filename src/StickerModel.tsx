@@ -178,26 +178,51 @@ export function StickerModel({
     [holoOptions],
   );
 
-  const backMaterial = useMemo(
+  const backMirrorMaterial = useMemo(
     () => createHoloFoilMaterial(holoOptions),
     [holoOptions],
   );
+
+  const backInkMaterial = useMemo(() => {
+    const mat = new THREE.MeshPhysicalMaterial({
+      color: new THREE.Color("#050505"),
+      alphaMap: maskMap,
+      transparent: true,
+      alphaTest: 0.08,
+      side: THREE.FrontSide,
+      roughness: 0.88,
+      metalness: 0.04,
+      clearcoat: 0.2,
+      clearcoatRoughness: 0.35,
+      envMapIntensity: 0.15,
+    });
+    return mat;
+  }, [maskMap]);
 
   useEffect(() => {
     return () => {
       bodyGeometry.dispose();
       backFaceGeometry.dispose();
       bodyMaterial.dispose();
-      backMaterial.dispose();
+      backMirrorMaterial.dispose();
+      backInkMaterial.dispose();
     };
-  }, [bodyGeometry, backFaceGeometry, bodyMaterial, backMaterial]);
+  }, [
+    bodyGeometry,
+    backFaceGeometry,
+    bodyMaterial,
+    backMirrorMaterial,
+    backInkMaterial,
+  ]);
 
   useFrame(({ clock }) => {
     const live = settingsRef.current;
     applyHoloLiveSettings(bodyMaterial, live);
-    applyHoloLiveSettings(backMaterial, live);
+    if (live.mirrorBack) {
+      applyHoloLiveSettings(backMirrorMaterial, live);
+      setHoloSunDirection(backMirrorMaterial, sunWorld);
+    }
     setHoloSunDirection(bodyMaterial, sunWorld);
-    setHoloSunDirection(backMaterial, sunWorld);
 
     const group = groupRef.current;
     if (!group) return;
@@ -220,6 +245,10 @@ export function StickerModel({
       group.rotation.z = THREE.MathUtils.lerp(group.rotation.z, 0, 0.12);
     }
   });
+
+  const backMaterial = settings.mirrorBack
+    ? backMirrorMaterial
+    : backInkMaterial;
 
   return (
     <group

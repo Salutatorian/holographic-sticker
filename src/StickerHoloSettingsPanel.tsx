@@ -132,6 +132,19 @@ export function StickerHoloSettingsPanel({
                   className="size-3.5 accent-white"
                 />
               </label>
+              <label className="flex items-center justify-between gap-3">
+                <span className="text-[10px] uppercase tracking-[0.12em] text-white/50">
+                  Mirror back
+                </span>
+                <input
+                  type="checkbox"
+                  checked={settings.mirrorBack}
+                  onChange={(event) =>
+                    patch({ mirrorBack: event.target.checked })
+                  }
+                  className="size-3.5 accent-white"
+                />
+              </label>
               <SliderRow
                 label="Sway speed"
                 value={settings.swaySpeed}
