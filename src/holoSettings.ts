@@ -42,9 +42,17 @@ export const HOLO_PATTERN_INDEX: Record<HoloPatternMode, number> = {
   pixels: 8,
 };
 
+/** How the sticker responds to input. Orbit = full 360 spin; follow = pointer tilt. */
+export type HoloInteractionMode = "orbit" | "follow";
+
 export type HoloPlaySettings = {
   /** Canvas / studio backdrop */
   background: string;
+  /**
+   * Orbit: drag for a full 360 spin (default).
+   * Follow: sticker leans toward the pointer with moving glare — no free orbit.
+   */
+  interaction: HoloInteractionMode;
   /** Foil motif overlay */
   pattern: HoloPatternMode;
   /** Motif size (higher = bigger cells / wider stripes) */
@@ -89,6 +97,7 @@ export type HoloPlaySettings = {
 
 export const DEFAULT_HOLO_PLAY_SETTINGS: HoloPlaySettings = {
   background: "#000000",
+  interaction: "orbit",
   pattern: "facets",
   patternScale: 1,
   patternDensity: 1,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, type MutableRefObject } from "react";
 import { useFrame } from "@react-three/fiber";
 import { useTexture } from "@react-three/drei";
 import * as THREE from "three";
@@ -18,6 +18,13 @@ import {
 import type { HoloPlaySettings } from "@/components/collectibles/sticker/holoSettings";
 import type { ClientStickerUrls } from "@/lib/collectibles/client-bake-logo";
 
+/** Normalized pointer over the canvas: x/y in [-1, 1], active while hovering. */
+export type PointerFollowState = {
+  x: number;
+  y: number;
+  active: boolean;
+};
+
 type StickerModelProps = {
   modelPath?: string;
   /** In-memory / blob texture set (Try-it playground). */
@@ -26,8 +33,14 @@ type StickerModelProps = {
   reduceMotion?: boolean;
   debugMode?: HoloDebugMode;
   sunPosition: [number, number, number];
+  /** Live sun for follow-mode glare (mutated each frame; optional). */
+  followSunRef?: MutableRefObject<THREE.Vector3>;
+  pointerRef?: MutableRefObject<PointerFollowState>;
   settings: HoloPlaySettings;
 };
+
+/** Peak lean in follow mode (~22°). */
+const FOLLOW_TILT_MAX = 0.38;
 
 function prepareTexture(
   tex: THREE.Texture,
@@ -59,6 +72,8 @@ export function StickerModel({
   reduceMotion = false,
   debugMode = "final",
   sunPosition,
+  followSunRef,
+  pointerRef,
   settings,
 }: StickerModelProps) {
   const groupRef = useRef<THREE.Group>(null);
@@ -68,6 +83,7 @@ export function StickerModel({
     () => new THREE.Vector3(...sunPosition),
     [sunPosition],
   );
+  const sunScratch = useMemo(() => new THREE.Vector3(), []);
 
   const textureList = useMemo(() => {
     if (textureUrls) {
@@ -220,14 +236,40 @@ export function StickerModel({
     applyHoloLiveSettings(bodyMaterial, live);
     if (live.mirrorBack) {
       applyHoloLiveSettings(backMirrorMaterial, live);
-      setHoloSunDirection(backMirrorMaterial, sunWorld);
     }
-    setHoloSunDirection(bodyMaterial, sunWorld);
+
+    const following = live.interaction === "follow";
+    const sunDir =
+      following && followSunRef
+        ? sunScratch.copy(followSunRef.current)
+        : sunWorld;
+    setHoloSunDirection(bodyMaterial, sunDir);
+    if (live.mirrorBack) {
+      setHoloSunDirection(backMirrorMaterial, sunDir);
+    }
 
     const group = groupRef.current;
     if (!group) return;
 
-    const swayOn = !reduceMotion && live.autoSway;
+    if (following && pointerRef && !reduceMotion) {
+      const ptr = pointerRef.current;
+      const lean = ptr.active ? 1 : 0.35;
+      const max = FOLLOW_TILT_MAX * lean;
+      // Pointer top-left → that corner leans toward the viewer.
+      const targetX = ptr.y * max;
+      const targetY = -ptr.x * max;
+      const ease = ptr.active ? 0.14 : 0.08;
+      group.rotation.x = THREE.MathUtils.lerp(group.rotation.x, targetX, ease);
+      group.rotation.y = THREE.MathUtils.lerp(group.rotation.y, targetY, ease);
+      group.rotation.z = THREE.MathUtils.lerp(
+        group.rotation.z,
+        ptr.active ? ptr.x * ptr.y * -0.06 : 0,
+        ease,
+      );
+      return;
+    }
+
+    const swayOn = !reduceMotion && live.autoSway && !following;
     if (swayOn) {
       // Visible idle rock — old 0.03 rad (~1.7°) only looked like a twitch
       const speed = Math.max(0.05, live.swaySpeed);

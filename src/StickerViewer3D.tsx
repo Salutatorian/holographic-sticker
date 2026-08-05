@@ -11,7 +11,7 @@ import {
   type RefObject,
 } from "react";
 import { flushSync } from "react-dom";
-import { Canvas, useThree } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import {
   Environment,
   Lightformer,
@@ -21,7 +21,10 @@ import { EffectComposer, Bloom, Vignette } from "@react-three/postprocessing";
 import { useReducedMotion } from "framer-motion";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import * as THREE from "three";
-import { StickerModel } from "@/components/collectibles/sticker/StickerModel";
+import {
+  StickerModel,
+  type PointerFollowState,
+} from "@/components/collectibles/sticker/StickerModel";
 import { StickerHoloSettingsPanel } from "@/components/collectibles/sticker/StickerHoloSettingsPanel";
 import {
   DEFAULT_HOLO_PLAY_SETTINGS,
@@ -43,6 +46,8 @@ import { cn } from "@/lib/utils";
 /** Default framing — pulled back so the full die-cut (incl. chin) clears UI chrome */
 const DEFAULT_POS = new THREE.Vector3(0, 0.06, 3.95);
 const IS_DEV = process.env.NODE_ENV === "development";
+/** Follow-mode key light orbit radius around the sticker. */
+const FOLLOW_SUN_RADIUS = 3.2;
 
 export type StickerExportQuality = "1x" | "2x" | "3x";
 
@@ -117,6 +122,8 @@ function Scene({
   sunPosition,
   settings,
   glRef,
+  pointerRef,
+  followSunRef,
 }: {
   modelPath?: string;
   textureUrls?: ClientStickerUrls;
@@ -128,9 +135,96 @@ function Scene({
   sunPosition: [number, number, number];
   settings: HoloPlaySettings;
   glRef: MutableRefObject<THREE.WebGLRenderer | null>;
+  pointerRef: MutableRefObject<PointerFollowState>;
+  followSunRef: MutableRefObject<THREE.Vector3>;
 }) {
   const { gl } = useThree();
   glRef.current = gl;
+  const keyLightRef = useRef<THREE.Group>(null);
+  const fillLightARef = useRef<THREE.DirectionalLight>(null);
+  const fillLightBRef = useRef<THREE.PointLight>(null);
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
+  const baseSunRef = useRef(new THREE.Vector3(...sunPosition));
+  baseSunRef.current.set(...sunPosition);
+  const fillScratch = useMemo(() => new THREE.Vector3(), []);
+
+  const followMode = settings.interaction === "follow";
+
+  useEffect(() => {
+    const el = gl.domElement;
+    const pointer = pointerRef.current;
+
+    const readPointer = (clientX: number, clientY: number, active: boolean) => {
+      const rect = el.getBoundingClientRect();
+      if (rect.width < 1 || rect.height < 1) return;
+      const nx = ((clientX - rect.left) / rect.width) * 2 - 1;
+      const ny = -(((clientY - rect.top) / rect.height) * 2 - 1);
+      pointer.x = THREE.MathUtils.clamp(nx, -1, 1);
+      pointer.y = THREE.MathUtils.clamp(ny, -1, 1);
+      pointer.active = active;
+    };
+
+    const onPointerMove = (event: PointerEvent) => {
+      if (settingsRef.current.interaction !== "follow") return;
+      readPointer(event.clientX, event.clientY, true);
+    };
+    const onPointerLeave = () => {
+      pointer.active = false;
+      pointer.x = 0;
+      pointer.y = 0;
+    };
+    const onPointerDown = (event: PointerEvent) => {
+      if (settingsRef.current.interaction !== "follow") return;
+      readPointer(event.clientX, event.clientY, true);
+    };
+
+    el.addEventListener("pointermove", onPointerMove);
+    el.addEventListener("pointerleave", onPointerLeave);
+    el.addEventListener("pointerdown", onPointerDown);
+    return () => {
+      el.removeEventListener("pointermove", onPointerMove);
+      el.removeEventListener("pointerleave", onPointerLeave);
+      el.removeEventListener("pointerdown", onPointerDown);
+    };
+  }, [gl, pointerRef]);
+
+  useEffect(() => {
+    if (followMode) return;
+    pointerRef.current.x = 0;
+    pointerRef.current.y = 0;
+    pointerRef.current.active = false;
+    followSunRef.current.copy(baseSunRef.current);
+    if (keyLightRef.current) {
+      keyLightRef.current.position.copy(baseSunRef.current);
+    }
+  }, [followMode, followSunRef, pointerRef, sunPosition]);
+
+  useFrame(() => {
+    const live = settingsRef.current;
+    if (live.interaction !== "follow") return;
+
+    const ptr = pointerRef.current;
+    // Soft rest glare when not hovering — slight top-right bias.
+    const px = ptr.active ? ptr.x : 0.35;
+    const py = ptr.active ? ptr.y : 0.2;
+    const elev = py * 0.55 + 0.22;
+    const target = followSunRef.current;
+    target.set(
+      Math.cos(elev) * Math.sin(px * 1.15) * FOLLOW_SUN_RADIUS,
+      Math.sin(elev) * FOLLOW_SUN_RADIUS + 0.35,
+      Math.cos(elev) * Math.cos(px * 1.15) * FOLLOW_SUN_RADIUS,
+    );
+
+    if (keyLightRef.current) {
+      keyLightRef.current.position.lerp(target, 0.16);
+      target.copy(keyLightRef.current.position);
+    }
+
+    fillScratch.set(-target.x * 0.95, -target.y * 0.4 + 0.6, -target.z * 0.95);
+    fillLightARef.current?.position.copy(fillScratch);
+    fillLightBRef.current?.position.copy(fillScratch);
+  });
 
   const fillPosition = useMemo((): [number, number, number] => {
     const [x, y, z] = sunPosition;
@@ -150,18 +244,20 @@ function Scene({
         position={[0, 2.5, 0]}
       />
 
-      <group position={sunPosition}>
+      <group ref={keyLightRef} position={sunPosition}>
         <directionalLight color="#fff6e8" intensity={3.4} />
         <pointLight color="#fff4e0" intensity={4.5} distance={14} decay={2} />
       </group>
 
       <directionalLight
+        ref={fillLightARef}
         castShadow={false}
         color="#e8eeff"
         intensity={1.5}
         position={fillPosition}
       />
       <pointLight
+        ref={fillLightBRef}
         color="#dce6ff"
         intensity={1.2}
         distance={10}
@@ -211,6 +307,8 @@ function Scene({
         reduceMotion={reduceMotion}
         debugMode={debugMode}
         sunPosition={sunPosition}
+        followSunRef={followSunRef}
+        pointerRef={pointerRef}
         settings={settings}
       />
 
@@ -229,6 +327,8 @@ function Scene({
         ref={controlsRef}
         makeDefault
         enablePan={false}
+        enableRotate={!followMode}
+        enableZoom
         enableDamping
         dampingFactor={reduceMotion ? 0.2 : 0.075}
         rotateSpeed={0.95}
@@ -267,6 +367,12 @@ export function StickerViewer3D({
   const reduceMotion = useReducedMotion() ?? false;
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
   const glRef = useRef<THREE.WebGLRenderer | null>(null);
+  const pointerRef = useRef<PointerFollowState>({
+    x: 0,
+    y: 0,
+    active: false,
+  });
+  const followSunRef = useRef(new THREE.Vector3(...DEFAULT_POS));
   const [contourState, setContourState] = useState<{
     path: string;
     data: ContourData;
@@ -349,7 +455,15 @@ export function StickerViewer3D({
     controls.object.position.copy(DEFAULT_POS);
     controls.target.set(0, 0.02, 0);
     controls.update();
+    pointerRef.current.x = 0;
+    pointerRef.current.y = 0;
+    pointerRef.current.active = false;
   }, []);
+
+  useEffect(() => {
+    if (settings.interaction !== "follow") return;
+    resetView();
+  }, [settings.interaction, resetView]);
 
   const onUserInteract = useCallback(() => {
     // reserved for future orbit UX hooks
@@ -498,6 +612,8 @@ export function StickerViewer3D({
               sunPosition={sunPosition}
               settings={settings}
               glRef={glRef}
+              pointerRef={pointerRef}
+              followSunRef={followSunRef}
             />
           </Suspense>
         </Canvas>

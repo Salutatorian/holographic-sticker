@@ -91,9 +91,9 @@ stripes · stars · splatters · pearl · glitter · emoji · brushes · pixels
 
 → `src/HoloFoilMaterial.ts`
 
-## 8. Orbit viewer + framing
+## 8. Orbit viewer + pointer follow
 
-`OrbitControls` for drag/zoom. Default camera sits far enough that the full die-cut clears UI chrome. Both faces use the same holo material.
+Default interaction is `OrbitControls` (full 360 spin + zoom). Play → **Interaction → Follow pointer** leans the die-cut toward the cursor and walks the key light with it so glare and foil chase the hand — original R3F path, not a CSS card clone. Reverse defaults to black vinyl; enable **Mirror back** for a mirrored front.
 
 Lazy-load `StickerViewer3D` (`next/dynamic`, `ssr: false`) from the lightbox so Three.js is not on the initial page bundle.
 

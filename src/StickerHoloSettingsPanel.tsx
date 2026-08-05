@@ -119,6 +119,28 @@ export function StickerHoloSettingsPanel({
                 value={settings.background}
                 onChange={(background) => patch({ background })}
               />
+              <label className="grid gap-1">
+                <span className="text-[10px] uppercase tracking-[0.12em] text-white/50">
+                  Interaction
+                </span>
+                <select
+                  value={settings.interaction}
+                  onChange={(event) =>
+                    patch({
+                      interaction: event.target
+                        .value as typeof settings.interaction,
+                    })
+                  }
+                  className="w-full rounded-lg border border-white/15 bg-black/40 px-2 py-1.5 text-[11px] text-white/85 outline-none"
+                >
+                  <option value="orbit" className="bg-black">
+                    Orbit 360°
+                  </option>
+                  <option value="follow" className="bg-black">
+                    Follow pointer
+                  </option>
+                </select>
+              </label>
               <label className="flex items-center justify-between gap-3">
                 <span className="text-[10px] uppercase tracking-[0.12em] text-white/50">
                   Auto sway
