@@ -222,7 +222,12 @@ export function StickerModel({
   });
 
   return (
-    <group ref={groupRef} scale={1}>
+    <group
+      ref={groupRef}
+      // Contour NDC is normalized per-axis on the texture; scale X by
+      // aspect (W/H) so the mesh matches the photo’s real proportions.
+      scale={[Math.max(0.2, contour.aspect || 0.8), 1, 1]}
+    >
       <mesh
         geometry={bodyGeometry}
         material={bodyMaterial}

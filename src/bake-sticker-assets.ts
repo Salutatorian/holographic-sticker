@@ -10,6 +10,8 @@ import sharp from "sharp";
 
 const WIDTH = 1024;
 const HEIGHT = 1280;
+/** Logo bake longest edge — output keeps the source aspect (no stretch). */
+const LOGO_MAX_EDGE = 1280;
 
 /** Bake pipeline tag — stable across logo/comic modes. */
 export const BAKE_PIPELINE_TAG = "fpc-6a6f73-68756177";
@@ -493,8 +495,11 @@ export async function bakeStickerAssets(
   const mode: BakeMode = options?.mode === "comic" ? "comic" : "logo";
 
   let pipeline = sharp(sourceImage).ensureAlpha();
+  let bakeWidth = WIDTH;
+  let bakeHeight = HEIGHT;
 
-  // Logo mode: add margin so edge marks (e.g. MARVEL box) are not clipped.
+  // Logo mode: add margin so edge marks are not clipped, then resize with
+  // fit:"inside" so the output keeps the source aspect (no downward stretch).
   if (mode === "logo") {
     const meta = await sharp(sourceImage).metadata();
     const srcW = meta.width || WIDTH;
@@ -506,15 +511,18 @@ export async function bakeStickerAssets(
       bottom: padY,
       left: padX,
       right: padX,
+      // Transparent pad — silhouette uses alpha, so pure #000 art stays solid.
       background: { r: 0, g: 0, b: 0, alpha: 0 },
     });
+    bakeWidth = LOGO_MAX_EDGE;
+    bakeHeight = LOGO_MAX_EDGE;
   }
 
   const { data, info } = await pipeline
     .resize({
-      width: WIDTH,
-      height: HEIGHT,
-      fit: "contain",
+      width: bakeWidth,
+      height: bakeHeight,
+      fit: mode === "logo" ? "inside" : "contain",
       background:
         mode === "logo"
           ? { r: 0, g: 0, b: 0, alpha: 0 }
@@ -541,20 +549,24 @@ export async function bakeStickerAssets(
       content[i] = foilCore[i];
     }
   } else {
-    // Logo: keep any pixel that isn't the backdrop (or has opacity).
-    const backdrop = sampleCornerBackdrop(rgba, width, height);
-    for (let i = 0; i < width * height; i += 1) {
+    // Logo: NEVER chroma-key near-black — #000 backgrounds are real art
+    // (photo-booth strips, etc.). Transparent letterbox/pad is the only cut.
+    let opaqueCount = 0;
+    const total = width * height;
+    for (let i = 0; i < total; i += 1) {
+      if ((rgba[i * 4 + 3] ?? 0) > 250) opaqueCount += 1;
+    }
+    const mostlyOpaque = opaqueCount / Math.max(1, total) > 0.92;
+
+    for (let i = 0; i < total; i += 1) {
       const o = i * 4;
       const r = rgba[o];
       const g = rgba[o + 1];
       const b = rgba[o + 2];
       const a = rgba[o + 3];
-      const opaque = a > 24;
-      const distant =
-        colorDistance(r, g, b, backdrop.r, backdrop.g, backdrop.b) > 28;
-      const on = opaque && (a < 250 ? true : distant || luminance(r, g, b) > 18);
+      const on = mostlyOpaque ? true : a > 24;
       content[i] = on ? 1 : 0;
-      // Foil panes = brighter / saturated fill, not pure black outlines.
+      // Foil panes = brighter fill; pure black stays as ink (no rainbow).
       foilCore[i] = on && !isBlackInk(r, g, b) && luminance(r, g, b) > 40 ? 1 : 0;
     }
   }
@@ -786,7 +798,12 @@ export async function bakeStickerAssets(
       .png()
       .toBuffer(),
     sharp(preview, { raw: { width, height, channels: 4 } })
-      .resize({ width: 720, height: 900, fit: "contain", background: "#000" })
+      .resize({
+        width: Math.min(720, width),
+        height: Math.min(900, height),
+        fit: "inside",
+        background: "#000",
+      })
       .webp({ quality: 92 })
       .toBuffer(),
   ]);

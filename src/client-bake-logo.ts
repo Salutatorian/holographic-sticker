@@ -336,17 +336,26 @@ function rgbaToPngBlob(
 }
 
 /**
- * Pad + letterbox into bake canvas (logo mode), return raw RGBA.
+ * Pad + scale into a bake canvas that keeps the source aspect (no stretch).
  */
-function rasterizeLogoSource(
-  img: HTMLImageElement,
-  width: number,
-  height: number,
-) {
+function rasterizeLogoSource(img: HTMLImageElement, maxEdge = 1280) {
   const padX = Math.max(12, Math.round(img.naturalWidth * 0.08));
   const padY = Math.max(12, Math.round(img.naturalHeight * 0.08));
   const paddedW = img.naturalWidth + padX * 2;
   const paddedH = img.naturalHeight + padY * 2;
+  const aspect = paddedW / Math.max(1, paddedH);
+
+  let width: number;
+  let height: number;
+  if (aspect >= 1) {
+    width = maxEdge;
+    height = Math.max(64, Math.round(maxEdge / aspect));
+  } else {
+    height = maxEdge;
+    width = Math.max(64, Math.round(maxEdge * aspect));
+  }
+  width -= width % 2;
+  height -= height % 2;
 
   const stage = document.createElement("canvas");
   stage.width = paddedW;
@@ -362,71 +371,51 @@ function rasterizeLogoSource(
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas unavailable");
   ctx.clearRect(0, 0, width, height);
+  // Aspect already matches — fill exactly (no letterbox squash).
+  ctx.drawImage(stage, 0, 0, width, height);
 
-  const scale = Math.min(width / paddedW, height / paddedH);
-  const dw = Math.round(paddedW * scale);
-  const dh = Math.round(paddedH * scale);
-  const dx = Math.floor((width - dw) / 2);
-  const dy = Math.floor((height - dh) / 2);
-  ctx.drawImage(stage, dx, dy, dw, dh);
-
-  return ctx.getImageData(0, 0, width, height);
+  return {
+    imageData: ctx.getImageData(0, 0, width, height),
+    width,
+    height,
+  };
 }
 
 export async function bakeLogoStickerClient(
   file: File,
   options?: {
-    width?: number;
-    height?: number;
+    maxEdge?: number;
     onProgress?: (message: string) => void;
   },
 ): Promise<ClientBakeResult> {
-  const width = options?.width ?? CLIENT_BAKE_WIDTH;
-  const height = options?.height ?? CLIENT_BAKE_HEIGHT;
+  const maxEdge = options?.maxEdge ?? 1280;
   const report = options?.onProgress ?? (() => undefined);
 
   report("Reading image…");
   const img = await loadImageFromFile(file);
 
   report("Cutting silhouette…");
-  const { data: rgba } = rasterizeLogoSource(img, width, height);
+  const { imageData, width, height } = rasterizeLogoSource(img, maxEdge);
+  const rgba = imageData.data;
 
-  const corners = [
-    [0, 0],
-    [width - 1, 0],
-    [0, height - 1],
-    [width - 1, height - 1],
-    [2, 2],
-    [width - 3, 2],
-    [2, height - 3],
-    [width - 3, height - 3],
-  ] as const;
-  let br = 0;
-  let bg = 0;
-  let bb = 0;
-  for (const [x, y] of corners) {
-    const o = (y * width + x) * 4;
-    br += rgba[o];
-    bg += rgba[o + 1];
-    bb += rgba[o + 2];
+  let opaqueCount = 0;
+  const total = width * height;
+  for (let i = 0; i < total; i += 1) {
+    if (rgba[i * 4 + 3] > 250) opaqueCount += 1;
   }
-  br = Math.round(br / corners.length);
-  bg = Math.round(bg / corners.length);
-  bb = Math.round(bb / corners.length);
+  const mostlyOpaque = opaqueCount / Math.max(1, total) > 0.92;
 
   const content = new Uint8Array(width * height);
   const foilCore = new Uint8Array(width * height);
 
-  for (let i = 0; i < width * height; i += 1) {
+  for (let i = 0; i < total; i += 1) {
     const o = i * 4;
     const r = rgba[o];
     const g = rgba[o + 1];
     const b = rgba[o + 2];
     const a = rgba[o + 3];
-    const opaque = a > 24;
-    const distant = colorDistance(r, g, b, br, bg, bb) > 28;
-    const on =
-      opaque && (a < 250 ? true : distant || luminance(r, g, b) > 18);
+    // Keep pure #000 art — only transparent pixels are cut away.
+    const on = mostlyOpaque ? true : a > 24;
     content[i] = on ? 1 : 0;
     foilCore[i] =
       on && !isBlackInk(r, g, b) && luminance(r, g, b) > 40 ? 1 : 0;
