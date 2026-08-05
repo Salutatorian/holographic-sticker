@@ -124,14 +124,20 @@ export function StickerHoloSettingsPanel({
                   Interaction
                 </span>
                 <select
-                  value={settings.interaction}
-                  onChange={(event) =>
-                    patch({
-                      interaction: event.target
-                        .value as typeof settings.interaction,
-                    })
+                  value={
+                    settings.mirrorBack ? settings.interaction : "follow"
                   }
-                  className="w-full rounded-lg border border-white/15 bg-black/40 px-2 py-1.5 text-[11px] text-white/85 outline-none"
+                  disabled={!settings.mirrorBack}
+                  onChange={(event) => {
+                    const interaction = event.target
+                      .value as typeof settings.interaction;
+                    if (interaction === "orbit") {
+                      patch({ interaction, mirrorBack: true });
+                      return;
+                    }
+                    patch({ interaction });
+                  }}
+                  className="w-full rounded-lg border border-white/15 bg-black/40 px-2 py-1.5 text-[11px] text-white/85 outline-none disabled:cursor-not-allowed disabled:opacity-45"
                 >
                   <option value="orbit" className="bg-black">
                     Orbit 360°
@@ -140,6 +146,11 @@ export function StickerHoloSettingsPanel({
                     Follow pointer
                   </option>
                 </select>
+                {!settings.mirrorBack ? (
+                  <span className="text-[9px] leading-snug text-white/35">
+                    Orbit needs Mirror back — one-sided stickers stay on Follow.
+                  </span>
+                ) : null}
               </label>
               <label className="flex items-center justify-between gap-3">
                 <span className="text-[10px] uppercase tracking-[0.12em] text-white/50">
@@ -161,14 +172,21 @@ export function StickerHoloSettingsPanel({
                 <input
                   type="checkbox"
                   checked={settings.mirrorBack}
-                  onChange={(event) =>
-                    patch({ mirrorBack: event.target.checked })
-                  }
+                  onChange={(event) => {
+                    const mirrorBack = event.target.checked;
+                    if (!mirrorBack) {
+                      // One-sided black reverse — no full 360 spin.
+                      patch({ mirrorBack: false, interaction: "follow" });
+                      return;
+                    }
+                    patch({ mirrorBack: true });
+                  }}
                   className="size-3.5 accent-white"
                 />
               </label>
               <p className="text-[9px] leading-snug text-white/35">
-                Off = matte black vinyl (default). On = front art on the reverse.
+                On (default) = art on both sides + Orbit 360°. Off = black vinyl
+                reverse, Follow pointer only.
               </p>
               <SliderRow
                 label="Sway speed"

@@ -28,6 +28,7 @@ import {
 import { StickerHoloSettingsPanel } from "@/components/collectibles/sticker/StickerHoloSettingsPanel";
 import {
   DEFAULT_HOLO_PLAY_SETTINGS,
+  isFollowInteraction,
   type HoloPlaySettings,
 } from "@/components/collectibles/sticker/holoSettings";
 import type { ContourData } from "@/components/collectibles/sticker/createStickerGeometry";
@@ -149,7 +150,7 @@ function Scene({
   baseSunRef.current.set(...sunPosition);
   const fillScratch = useMemo(() => new THREE.Vector3(), []);
 
-  const followMode = settings.interaction === "follow";
+  const followMode = isFollowInteraction(settings);
   const keyDirIntensity = followMode ? 1.55 : 3.4;
   const keyPointIntensity = followMode ? 1.85 : 4.5;
   const fillDirIntensity = followMode ? 0.65 : 1.5;
@@ -176,7 +177,7 @@ function Scene({
     };
 
     const onPointerMove = (event: PointerEvent) => {
-      if (settingsRef.current.interaction !== "follow") return;
+      if (!isFollowInteraction(settingsRef.current)) return;
       readPointer(event.clientX, event.clientY, true);
     };
     const onPointerLeave = () => {
@@ -185,7 +186,7 @@ function Scene({
       pointer.y = 0;
     };
     const onPointerDown = (event: PointerEvent) => {
-      if (settingsRef.current.interaction !== "follow") return;
+      if (!isFollowInteraction(settingsRef.current)) return;
       readPointer(event.clientX, event.clientY, true);
     };
 
@@ -212,7 +213,7 @@ function Scene({
 
   useFrame(() => {
     const live = settingsRef.current;
-    if (live.interaction !== "follow") return;
+    if (!isFollowInteraction(live)) return;
 
     const ptr = pointerRef.current;
     // Soft rest — lower bias so idle follow mode isn't washed out.
@@ -474,9 +475,17 @@ export function StickerViewer3D({
   }, []);
 
   useEffect(() => {
-    if (settings.interaction !== "follow") return;
-    resetView();
-  }, [settings.interaction, resetView]);
+    // One-sided black reverse can't do an honest 360 — lock to follow.
+    if (!settings.mirrorBack && settings.interaction !== "follow") {
+      setSettings((current) => ({ ...current, interaction: "follow" }));
+    }
+  }, [settings.mirrorBack, settings.interaction]);
+
+  useEffect(() => {
+    if (isFollowInteraction(settings)) {
+      resetView();
+    }
+  }, [settings.interaction, settings.mirrorBack, resetView]);
 
   const onUserInteract = useCallback(() => {
     // reserved for future orbit UX hooks

@@ -16,6 +16,7 @@ import {
   type HoloDebugMode,
 } from "@/components/collectibles/sticker/HoloFoilMaterial";
 import type { HoloPlaySettings } from "@/components/collectibles/sticker/holoSettings";
+import { isFollowInteraction } from "@/components/collectibles/sticker/holoSettings";
 import type { ClientStickerUrls } from "@/lib/collectibles/client-bake-logo";
 
 /** Normalized pointer over the canvas: x/y in [-1, 1], active while hovering. */
@@ -246,7 +247,7 @@ export function StickerModel({
       applyHoloLiveSettings(backMirrorMaterial, live);
     }
 
-    const following = live.interaction === "follow";
+    const following = isFollowInteraction(live);
     const sunDir =
       following && followSunRef
         ? sunScratch.copy(followSunRef.current)
