@@ -200,17 +200,18 @@ export function StickerModel({
   );
 
   const backInkMaterial = useMemo(() => {
-    const mat = new THREE.MeshPhysicalMaterial({
-      color: new THREE.Color("#050505"),
+    // Matte black vinyl — BasicMaterial so env/lights can't wash it into a
+    // "already mirrored" ghost of the front. Alpha from mask G channel.
+    const mat = new THREE.MeshBasicMaterial({
+      color: new THREE.Color("#000000"),
       alphaMap: maskMap,
       transparent: true,
-      alphaTest: 0.08,
+      alphaTest: 0.12,
       side: THREE.FrontSide,
-      roughness: 0.88,
-      metalness: 0.04,
-      clearcoat: 0.2,
-      clearcoatRoughness: 0.35,
-      envMapIntensity: 0.15,
+      depthWrite: true,
+      polygonOffset: true,
+      polygonOffsetFactor: 1,
+      polygonOffsetUnits: 1,
     });
     return mat;
   }, [maskMap]);
@@ -308,7 +309,9 @@ export function StickerModel({
       <mesh
         geometry={backFaceGeometry}
         material={backMaterial}
-        position={[0, 0, -0.0026]}
+        // Sit clearly behind the stripped extrusion so black always wins.
+        position={[0, 0, -0.0042]}
+        renderOrder={1}
         castShadow
         receiveShadow
       />

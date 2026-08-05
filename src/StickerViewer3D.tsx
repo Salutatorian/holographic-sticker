@@ -150,6 +150,16 @@ function Scene({
   const fillScratch = useMemo(() => new THREE.Vector3(), []);
 
   const followMode = settings.interaction === "follow";
+  const keyDirIntensity = followMode ? 1.55 : 3.4;
+  const keyPointIntensity = followMode ? 1.85 : 4.5;
+  const fillDirIntensity = followMode ? 0.65 : 1.5;
+  const fillPointIntensity = followMode ? 0.5 : 1.2;
+  const envIntensity = followMode ? 0.28 : 0.5;
+  const bloomIntensity = reduceMotion
+    ? Math.min(0.4, settings.bloom * 0.35)
+    : followMode
+      ? settings.bloom * 0.72
+      : settings.bloom;
 
   useEffect(() => {
     const el = gl.domElement;
@@ -205,10 +215,10 @@ function Scene({
     if (live.interaction !== "follow") return;
 
     const ptr = pointerRef.current;
-    // Soft rest glare when not hovering — slight top-right bias.
-    const px = ptr.active ? ptr.x : 0.35;
-    const py = ptr.active ? ptr.y : 0.2;
-    const elev = py * 0.55 + 0.22;
+    // Soft rest — lower bias so idle follow mode isn't washed out.
+    const px = ptr.active ? ptr.x : 0.22;
+    const py = ptr.active ? ptr.y : 0.12;
+    const elev = py * 0.48 + 0.16;
     const target = followSunRef.current;
     target.set(
       Math.cos(elev) * Math.sin(px * 1.15) * FOLLOW_SUN_RADIUS,
@@ -231,44 +241,45 @@ function Scene({
     return [-x * 0.95, -y * 0.4 + 0.6, -z * 0.95];
   }, [sunPosition]);
 
-  const bloomIntensity = reduceMotion
-    ? Math.min(0.4, settings.bloom * 0.35)
-    : settings.bloom;
-
   return (
     <>
       <StudioBackdrop color={settings.background} />
-      <ambientLight intensity={0.38} />
+      <ambientLight intensity={followMode ? 0.28 : 0.38} />
       <hemisphereLight
-        args={["#fff0e0", "#2a3040", 0.55]}
+        args={["#fff0e0", "#2a3040", followMode ? 0.38 : 0.55]}
         position={[0, 2.5, 0]}
       />
 
       <group ref={keyLightRef} position={sunPosition}>
-        <directionalLight color="#fff6e8" intensity={3.4} />
-        <pointLight color="#fff4e0" intensity={4.5} distance={14} decay={2} />
+        <directionalLight color="#fff6e8" intensity={keyDirIntensity} />
+        <pointLight
+          color="#fff4e0"
+          intensity={keyPointIntensity}
+          distance={14}
+          decay={2}
+        />
       </group>
 
       <directionalLight
         ref={fillLightARef}
         castShadow={false}
         color="#e8eeff"
-        intensity={1.5}
+        intensity={fillDirIntensity}
         position={fillPosition}
       />
       <pointLight
         ref={fillLightBRef}
         color="#dce6ff"
-        intensity={1.2}
+        intensity={fillPointIntensity}
         distance={10}
         decay={2}
         position={fillPosition}
       />
 
-      <Environment resolution={256} environmentIntensity={0.5}>
+      <Environment resolution={256} environmentIntensity={envIntensity}>
         <Lightformer
           form="rect"
-          intensity={2.2}
+          intensity={followMode ? 1.2 : 2.2}
           color="#fff4ea"
           position={[2.4, 3.0, 2.6]}
           scale={[5, 3.5, 1]}
@@ -276,7 +287,7 @@ function Scene({
         />
         <Lightformer
           form="rect"
-          intensity={1.2}
+          intensity={followMode ? 0.65 : 1.2}
           color="#a8b8ff"
           position={[-2.8, 1.2, -1.2]}
           scale={[3, 4.5, 1]}
@@ -284,7 +295,7 @@ function Scene({
         />
         <Lightformer
           form="rect"
-          intensity={0.7}
+          intensity={followMode ? 0.4 : 0.7}
           color="#ffffff"
           position={[0.2, 0.3, -3.5]}
           scale={[6, 4, 1]}
@@ -292,7 +303,7 @@ function Scene({
         />
         <Lightformer
           form="ring"
-          intensity={1.3}
+          intensity={followMode ? 0.7 : 1.3}
           color="#ffffff"
           position={[0.5, 1.6, 2.6]}
           scale={2.2}
@@ -314,7 +325,9 @@ function Scene({
 
       <EffectComposer multisampling={0} enableNormalPass={false}>
         <Bloom
-          luminanceThreshold={reduceMotion ? 0.9 : 0.72}
+          luminanceThreshold={
+            reduceMotion ? 0.9 : followMode ? 0.82 : 0.72
+          }
           luminanceSmoothing={0.22}
           intensity={bloomIntensity}
           mipmapBlur

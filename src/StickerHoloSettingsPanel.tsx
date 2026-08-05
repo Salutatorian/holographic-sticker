@@ -167,6 +167,9 @@ export function StickerHoloSettingsPanel({
                   className="size-3.5 accent-white"
                 />
               </label>
+              <p className="text-[9px] leading-snug text-white/35">
+                Off = matte black vinyl (default). On = front art on the reverse.
+              </p>
               <SliderRow
                 label="Sway speed"
                 value={settings.swaySpeed}

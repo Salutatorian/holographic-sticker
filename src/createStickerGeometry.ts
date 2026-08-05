@@ -27,8 +27,8 @@ export function applyPlanarUVs(geometry: THREE.BufferGeometry) {
 
 /**
  * ExtrudeGeometry includes a back cap that also samples the front textures.
- * When a dedicated reverse mesh is drawn, that second back surface ghosts.
- * Drop triangles whose face normal points mostly toward -Z.
+ * When a dedicated reverse mesh is drawn, that second back surface ghosts as a
+ * mirrored front. Drop triangles whose face normal points mostly toward -Z.
  */
 export function stripExtrusionBackCap(geometry: THREE.BufferGeometry) {
   const position = geometry.attributes.position;
@@ -53,7 +53,9 @@ export function stripExtrusionBackCap(geometry: THREE.BufferGeometry) {
     ab.subVectors(a, b);
     cb.subVectors(c, b);
     normal.crossVectors(cb, ab).normalize();
-    if (normal.z < -0.55) continue;
+    // Aggressive: any rearward-facing tri (caps + soft bevels) must go so the
+    // dedicated black / mirror back mesh is the only reverse surface.
+    if (normal.z < -0.12) continue;
     next.push(ia, ib, ic);
   }
 
