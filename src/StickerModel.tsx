@@ -77,6 +77,7 @@ export function StickerModel({
   settings,
 }: StickerModelProps) {
   const groupRef = useRef<THREE.Group>(null);
+  const backMeshRef = useRef<THREE.Mesh>(null);
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
   const sunWorld = useMemo(
@@ -84,6 +85,10 @@ export function StickerModel({
     [sunPosition],
   );
   const sunScratch = useMemo(() => new THREE.Vector3(), []);
+  const camWorld = useMemo(() => new THREE.Vector3(), []);
+  const stickerWorld = useMemo(() => new THREE.Vector3(), []);
+  const stickerForward = useMemo(() => new THREE.Vector3(), []);
+  const viewToCam = useMemo(() => new THREE.Vector3(), []);
 
   const textureList = useMemo(() => {
     if (textureUrls) {
@@ -200,24 +205,20 @@ export function StickerModel({
   );
 
   const backInkMaterial = useMemo(() => {
-    // Lit matte vinyl — MeshBasic #000 on a black studio backdrop reads as
-    // "the sticker disappeared" on a 360. Physical + rim catch keeps the
-    // die-cut readable while still clearly not mirrored front art.
+    // Opaque alpha-test cutout (not transparent) so the vinyl reverse can't
+    // depth-sort over the front and turn the whole sticker grey mid-orbit.
     const mat = new THREE.MeshPhysicalMaterial({
-      color: new THREE.Color("#0c0c0e"),
+      color: new THREE.Color("#101014"),
       alphaMap: maskMap,
-      transparent: true,
-      alphaTest: 0.12,
+      transparent: false,
+      alphaTest: 0.45,
       side: THREE.FrontSide,
-      roughness: 0.92,
-      metalness: 0.02,
-      clearcoat: 0.35,
-      clearcoatRoughness: 0.45,
-      envMapIntensity: 0.28,
+      roughness: 0.9,
+      metalness: 0.03,
+      clearcoat: 0.4,
+      clearcoatRoughness: 0.4,
+      envMapIntensity: 0.32,
       depthWrite: true,
-      polygonOffset: true,
-      polygonOffsetFactor: 1,
-      polygonOffsetUnits: 1,
     });
     return mat;
   }, [maskMap]);
@@ -238,7 +239,7 @@ export function StickerModel({
     backInkMaterial,
   ]);
 
-  useFrame(({ clock }) => {
+  useFrame(({ clock, camera }) => {
     const live = settingsRef.current;
     applyHoloLiveSettings(bodyMaterial, live);
     if (live.mirrorBack) {
@@ -256,6 +257,18 @@ export function StickerModel({
     }
 
     const group = groupRef.current;
+    const backMesh = backMeshRef.current;
+    if (group && backMesh) {
+      // Only draw the reverse when the camera is actually behind the sticker.
+      // Otherwise the thin transparent back plane paints over the foil and
+      // the die-cut looks like a flat grey slab while orbiting.
+      camera.getWorldPosition(camWorld);
+      group.getWorldPosition(stickerWorld);
+      group.getWorldDirection(stickerForward);
+      viewToCam.subVectors(camWorld, stickerWorld).normalize();
+      backMesh.visible = viewToCam.dot(stickerForward) < -0.02;
+    }
+
     if (!group) return;
 
     if (following && pointerRef && !reduceMotion) {
@@ -313,11 +326,10 @@ export function StickerModel({
         receiveShadow
       />
       <mesh
+        ref={backMeshRef}
         geometry={backFaceGeometry}
         material={backMaterial}
-        // Sit clearly behind the stripped extrusion so black always wins.
-        position={[0, 0, -0.0042]}
-        renderOrder={1}
+        position={[0, 0, -0.0034]}
         castShadow
         receiveShadow
       />
